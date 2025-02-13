@@ -1,3 +1,4 @@
+import os
 import requests
 
 def get_prayers_times(today, latitude, longitude):
@@ -5,7 +6,7 @@ def get_prayers_times(today, latitude, longitude):
     Функция возвращает время намаза и год по Хиджре
     :return:
     """
-    url = f"http://api.aladhan.com/v1/timings/{today}?latitude={latitude}&longitude={longitude}&method=14"
+    url = f"{os.getenv('PRAYER_TIME_API')}/v1/timings/{today}?latitude={latitude}&longitude={longitude}&method=14"
     response = requests.get(url)
     data = response.json()
 

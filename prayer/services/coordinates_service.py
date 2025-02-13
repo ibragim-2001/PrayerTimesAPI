@@ -1,11 +1,9 @@
+import os
 import requests
 
+
 def get_coordinates(user_ip):
-    url = 'http://ip-api.com/json/'
+    url = os.getenv("IP_INFO_API_URL")
     response = requests.get(url + user_ip).json()
-    lat = response["lat"]
-    lon = response["lon"]
 
-    return {'lat': lat, 'lon': lon}
-
-# Спрятать URL
+    return {'latitude': response["lat"], 'longitude': response["lon"], 'city': response["city"]}
