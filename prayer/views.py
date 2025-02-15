@@ -14,7 +14,7 @@ class PrayerTimeByLocationView(APIView):
 
     def get(self, request):
         user_ip = ip_service.get_user_ip(request)
-        coordinates = coordinates_service.get_coordinates(user_ip)
+        coordinates = coordinates_service.get_coordinates_by_ip(user_ip)
         prayer_time = prayer_time_service.get_prayers_times(
             TODAY_DATE,
             coordinates["latitude"],

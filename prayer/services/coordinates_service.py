@@ -2,7 +2,7 @@ import os
 import requests
 
 
-def get_coordinates(user_ip):
+def get_coordinates_by_ip(user_ip):
     url = os.getenv("IP_INFO_API_URL")
     response = requests.get(url + user_ip).json()
 
