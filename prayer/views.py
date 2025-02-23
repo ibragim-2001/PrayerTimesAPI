@@ -1,6 +1,9 @@
+from drf_yasg import openapi
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+from drf_yasg.utils import swagger_auto_schema
 
 from .models import City
 from .serializers import CitySerializer
@@ -11,6 +14,7 @@ from .services import (
     ip_service,
     coordinates_service,
     prayer_time_service,
+    translate_service
 )
 
 
@@ -29,10 +33,20 @@ class PrayerTimeByLocationView(APIView):
             coordinates['longitude']
         )
 
-        return Response(data={'city': coordinates['city'], 'prayer-time': prayer_time}, status=status.HTTP_200_OK)
+        return Response(data={'city': translate_service.translate(coordinates['city']), 'prayer-time': prayer_time}, status=status.HTTP_200_OK)
 
 
 class CitySearchView(APIView):
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'query',
+                openapi.IN_QUERY,
+                description="Параметр запроса",
+                type=openapi.TYPE_STRING)
+        ]
+    )
 
     def get(self, request):
         query = request.GET.get('query', None)

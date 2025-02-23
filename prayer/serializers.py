@@ -6,17 +6,19 @@ class CountrySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Country
-        fields = ("id", "name")
+        fields = ("name", )
 
 
 class RegionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Region
-        fields = ("id", "name", "country")
+        fields = ("name", "country")
 
 class CitySerializer(serializers.ModelSerializer):
+    region = serializers.CharField(source="region.name")
+    country = serializers.CharField(source="region.country.name")
 
     class Meta:
         model = City
-        fields = ("id", "name")
+        fields = ("country", "region", "name")
