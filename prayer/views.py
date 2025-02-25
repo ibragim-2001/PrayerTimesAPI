@@ -85,7 +85,7 @@ class PrayerTimeByCityView(APIView):
             coordinates: Dict[str, float] = coordinates_service.get_coordinates_by_city(user_city=user_city)
 
             if not coordinates:
-                return Response({"error": "Не удалось получить координаты города"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(data={"error": "Не удалось получить координаты города"}, status=status.HTTP_404_NOT_FOUND)
 
             prayer_time: Dict[str, str] = prayer_time_service.get_prayers_times(
                 TODAY_DATE,
@@ -93,8 +93,8 @@ class PrayerTimeByCityView(APIView):
                 coordinates["longitude"]
             )
 
-            return Response(data={"city": user_city.name,"prayer-time": prayer_time},status=status.HTTP_200_OK)
+            return Response(data={"city": user_city.name,"prayer-time": prayer_time}, status=status.HTTP_200_OK)
         except City.DoesNotExist:
-            return Response(data={"error": "Город не найден"},status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"error": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
         except GeocoderUnavailable:
             return Response(data={"error": "Служба поиска местоположения временно не работает"}, status=status.HTTP_400_BAD_REQUEST)
