@@ -9,6 +9,8 @@ from django.http import HttpRequest, HttpResponse
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from geopy.exc import GeocoderUnavailable
+
 from .models import City
 from .serializers import CitySerializer
 
@@ -28,12 +30,12 @@ class PrayerTimeByLocationView(APIView):
         user_ip: Optional[str] = ip_service.get_user_ip(request)
 
         if user_ip == "127.0.0.1" or user_ip is None:
-            return Response({"message": "Не удалось определить ваше местоположение"},status.HTTP_400_BAD_REQUEST)
+            return Response(data={"message": "Не удалось определить ваше местоположение"}, status=status.HTTP_400_BAD_REQUEST)
 
         coordinates: Dict[str, float] = coordinates_service.get_coordinates_by_ip(user_ip)
 
         if not coordinates:
-            return Response({"message": "Не удалось получить координаты по IP"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"message": "Не удалось получить координаты по IP"}, status=status.HTTP_404_NOT_FOUND)
 
         prayer_time: Dict[str, str] = prayer_time_service.get_prayers_times(
             TODAY_DATE,
@@ -41,12 +43,7 @@ class PrayerTimeByLocationView(APIView):
             coordinates["longitude"]
         )
 
-        return Response(
-            data={
-                "city": translate_service.translate(coordinates["city"]),
-                "prayer-time": prayer_time
-            },
-            status=status.HTTP_200_OK)
+        return Response(data={"city": translate_service.translate(str(coordinates["city"])), "prayer-time": prayer_time}, status=status.HTTP_200_OK)
 
 
 class CitySearchView(APIView):
@@ -70,17 +67,14 @@ class CitySearchView(APIView):
         cities = City.objects.filter(name__icontains=query)
 
         if not cities.exists():
-            return Response({"message": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"message": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
 
         serializer: CitySerializer = CitySerializer(cities, many=True)
 
         if not cities.exists():
-            return Response({"message": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"message": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response(
-            data=serializer.data,
-            status=status.HTTP_200_OK
-        )
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
 class PrayerTimeByCityView(APIView):
@@ -98,11 +92,9 @@ class PrayerTimeByCityView(APIView):
                 coordinates["latitude"],
                 coordinates["longitude"]
             )
-            return Response(
-                data={
-                    "city": user_city.name,
-                    "prayer-time": prayer_time
-                },
-                status=status.HTTP_200_OK)
+
+            return Response(data={"city": user_city.name,"prayer-time": prayer_time},status=status.HTTP_200_OK)
         except City.DoesNotExist:
-            return Response({"error": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"error": "Город не найден"},status=status.HTTP_404_NOT_FOUND)
+        except GeocoderUnavailable:
+            return Response(data={"error": "Служба поиска местоположения временно не работает"}, status=status.HTTP_400_BAD_REQUEST)
