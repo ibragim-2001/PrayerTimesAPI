@@ -71,9 +71,6 @@ class CitySearchView(APIView):
 
         serializer: CitySerializer = CitySerializer(cities, many=True)
 
-        if not cities.exists():
-            return Response(data={"message": "Город не найден"}, status=status.HTTP_404_NOT_FOUND)
-
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
