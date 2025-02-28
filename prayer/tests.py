@@ -49,7 +49,7 @@ class PrayerTimeByCityTestCase(APITestCase):
 
     @patch('prayer.services.coordinates_service.get_coordinates_by_city')
     @patch('prayer.services.prayer_time_service.get_prayers_times')
-    def test_get_prayer_times_success(self, mock_get_prayers_times=None, mock_get_coordinates=None):
+    def test_get_prayer_times_success(self, mock_get_prayers_times, mock_get_coordinates):
         """
         Этот тест проверяет успешное получение времени молитвы для существующего города.
         Мы используем unittest.mock.patch для замены вызовов к
@@ -115,10 +115,10 @@ class PrayerTimeByLocationTestCase(APITestCase):
 
     @patch('prayer.services.ip_service.get_user_ip')
     @patch('prayer.services.coordinates_service.get_coordinates_by_ip')
-    @patch('prayer.services.prayer_time_service.get_prayers_time')
-    def get_prayer_time_success(self, mock_get_user_ip, mock_get_coordinates_by_ip,  mock_get_prayers_times):
+    @patch('prayer.services.prayer_time_service.get_prayers_times')
+    def test_get_prayer_time_success(self, mock_get_user_ip, mock_get_coordinates_by_ip,  mock_get_prayers_times):
         mock_get_user_ip.return_value = '111.22.333.444'
-        mock_get_coordinates_by_ip.return_value = {"latitude": 00.000, "longitude": 00.000}
+        mock_get_coordinates_by_ip.return_value = {"latitude": 00.000, "longitude": 00.000, 'city': 'НеСуществующийГород'}
         mock_get_prayers_times.return_value = {
             "fajr": "00:00",
             "dhuhr": "00:00",
@@ -127,7 +127,7 @@ class PrayerTimeByLocationTestCase(APITestCase):
             "isha": "00:00"
         }
 
-        path = reverse('prayer-time-by-location', args=[self.city.id])
+        path = reverse('prayer-time-by-location')
         response = self.client.get(path)
         print(response.status_code)
         # 0 test Не находит тесты??
