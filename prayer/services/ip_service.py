@@ -1,5 +1,5 @@
 from django.http import HttpRequest
-from typing import Dict, Optional
+from typing import Optional
 
 def get_user_ip(request: HttpRequest) -> Optional[str]:
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")

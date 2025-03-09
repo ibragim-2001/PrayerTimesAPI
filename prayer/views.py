@@ -35,7 +35,7 @@ class PrayerTimeByLocationView(APIView):
         coordinates: Dict[str, float] = coordinates_service.get_coordinates_by_ip(user_ip)
 
         if not coordinates:
-            return Response(data={"message": "Не удалось получить координаты по IP"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(data={"message": "Не удалось получить координаты по местоположению"}, status=status.HTTP_404_NOT_FOUND)
 
         prayer_time: Dict[str, str] = prayer_time_service.get_prayers_times(
             TODAY_DATE,

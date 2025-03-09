@@ -12,7 +12,7 @@ def get_coordinates_by_ip(user_ip: str):
     return {"latitude": response["lat"], "longitude": response["lon"], "city": response["city"]}
 
 
-def get_coordinates_by_city(user_city: str):
+def get_coordinates_by_city(user_city):
 
     geolocator = Nominatim(user_agent="MyGeocoder")
     location = geolocator.geocode(user_city)
