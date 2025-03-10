@@ -16,34 +16,32 @@ from .serializers import CitySerializer
 
 from .utils.time_utils import TODAY_DATE
 
-from .services import (
-    ip_service,
-    coordinates_service,
-    prayer_time_service,
-    translate_service
-)
+from .services.ip_service import get_user_ip
+from .services.coordinates_service import get_coordinates
+from .services.prayer_time_service import get_prayers_times
+from .services.translate_service import translate
 
 
 class PrayerTimeByLocationView(APIView):
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        user_ip: Optional[str] = ip_service.get_user_ip(request)
+        user_ip: Optional[str] = get_user_ip(request)
 
         if user_ip == "127.0.0.1" or user_ip is None:
             return Response(data={"message": "Не удалось определить ваше местоположение"}, status=status.HTTP_400_BAD_REQUEST)
 
-        coordinates: Dict[str, float] = coordinates_service.get_coordinates_by_ip(user_ip)
+        coordinates: Dict[str, float] = get_coordinates(user_ip=user_ip)
 
         if not coordinates:
             return Response(data={"message": "Не удалось получить координаты по местоположению"}, status=status.HTTP_404_NOT_FOUND)
 
-        prayer_time: Dict[str, str] = prayer_time_service.get_prayers_times(
+        prayer_time: Dict[str, str] = get_prayers_times(
             TODAY_DATE,
             coordinates["latitude"],
             coordinates["longitude"]
         )
 
-        return Response(data={"city": translate_service.translate(str(coordinates["city"])), "prayer-time": prayer_time}, status=status.HTTP_200_OK)
+        return Response(data={"city": translate(str(coordinates["city"])), "prayer-time": prayer_time}, status=status.HTTP_200_OK)
 
 
 class CitySearchView(APIView):
@@ -79,12 +77,12 @@ class PrayerTimeByCityView(APIView):
     def get(self, request: HttpRequest, city_id: int) -> HttpResponse:
         try:
             user_city = City.objects.get(id=city_id)
-            coordinates: Dict[str, float] = coordinates_service.get_coordinates_by_city(user_city=user_city)
+            coordinates: Dict[str, float] = get_coordinates(user_city=user_city)
 
             if not coordinates:
                 return Response(data={"error": "Не удалось получить координаты города"}, status=status.HTTP_404_NOT_FOUND)
 
-            prayer_time: Dict[str, str] = prayer_time_service.get_prayers_times(
+            prayer_time: Dict[str, str] = get_prayers_times(
                 TODAY_DATE,
                 coordinates["latitude"],
                 coordinates["longitude"]

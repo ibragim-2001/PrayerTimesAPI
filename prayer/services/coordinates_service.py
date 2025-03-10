@@ -25,3 +25,10 @@ def get_coordinates_by_city(user_city):
         }
     else:
         return None
+
+
+def get_coordinates(user_ip=None, user_city=None):
+    if user_city:
+        return get_coordinates_by_city(user_city)
+    else:
+        return get_coordinates_by_ip(user_ip)

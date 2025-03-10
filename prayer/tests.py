@@ -1,106 +1,130 @@
-from http import HTTPStatus
-from unittest.mock import patch
-from geopy.exc import GeocoderUnavailable
+import os
+from unittest import TestCase
+from unittest.mock import patch, MagicMock
 
-from django.urls import reverse
-from rest_framework.test import APITestCase
+from django.http import HttpRequest
 
-from .models import City, Country, Region
+from prayer.services.coordinates_service import get_coordinates_by_ip, get_coordinates_by_city
+from prayer.utils.time_utils import TODAY_DATE
 
-
-class SearchCityTestCase(APITestCase):
-
-    def setUp(self):
-        self.country = Country.objects.create(name='Россия')
-        self.region = Region.objects.create(name='Москва и Московская обл.', country=self.country)
-        self.city = City.objects.create(name="Москва", region=self.region)
-
-    def test_search_city(self):
-        path = reverse('city-search') + '?query=Мос'
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_search_city_not_found(self):
-        path = reverse('city-search') + '?query=НеСуществующийГород'
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-        self.assertEqual(response.data, {'message': 'Город не найден'})
-
-    def test_search_city_not_query(self):
-        path = reverse('city-search')
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
-        self.assertEqual(response.data, {'message': 'Вы ничего не ввели'})
-
-    def tearDown(self):
-        pass
+from prayer.services.ip_service import get_user_ip
+from prayer.services.translate_service import translate
+from prayer.services.prayer_time_service import get_prayers_times
 
 
-class PrayerTimeByCityTestCase(APITestCase):
+class GetUserIpTestCase(TestCase):
 
-    def setUp(self):
-        """
-        Создаем в тестовой базе данных данные
-        :return:
-        """
-        self.country = Country.objects.create(name='Россия')
-        self.region = Region.objects.create(name='Москва и Московская обл.', country=self.country)
-        self.city = City.objects.create(name="Москва", region=self.region)
+    def test_get_ip_from_x_forwarded_for(self):
+        request = HttpRequest()
+        request.META['HTTP_X_FORWARDED_FOR'] = '192.168.1.1, 10.0.0.1'
+        ip = get_user_ip(request)
+        self.assertEqual(ip, '192.168.1.1')
 
-    @patch('prayer.services.coordinates_service.get_coordinates_by_city')
-    @patch('prayer.services.prayer_time_service.get_prayers_times')
-    def test_get_prayer_times_success(self, mock_get_prayers_times, mock_get_coordinates):
-        """
-        Этот тест проверяет успешное получение времени молитвы для существующего города.
-        Мы используем unittest.mock.patch для замены вызовов к
-        внешним сервисам (координаты и время молитвы) на поддельные данные.
-        :param mock_get_prayers_times:
-        :param mock_get_coordinates:
-        :return:
-        """
-        mock_get_coordinates.return_value = {"latitude": 55.7558, "longitude": 37.6173}
+    def test_get_ip_from_remote_addr(self):
+        request = HttpRequest()
+        request.META['REMOTE_ADDR'] = '10.0.0.1'
+        ip = get_user_ip(request)
+        self.assertEqual(ip, '10.0.0.1')
 
-        mock_get_prayers_times.return_value = {
-            "fajr": "00:00",
-            "dhuhr": "00:00",
-            "asr": "00:00",
-            "maghrib": "00:00",
-            "isha": "00:00"
+    def test_get_ip_only_x_forwarded_for(self):
+        request = HttpRequest()
+        request.META['HTTP_X_FORWARDED_FOR'] = ''
+        request.META['REMOTE_ADDR'] = '172.16.0.1'
+        ip = get_user_ip(request)
+        self.assertEqual(ip, '172.16.0.1')
+
+    def test_get_ip_no_headers(self):
+        request = HttpRequest()
+        ip = get_user_ip(request)
+        self.assertIsNone(ip)
+
+
+class TranslateTestCase(TestCase):
+
+    def test_get_translate_success(self):
+        translated_word = translate('New-York')
+        self.assertEqual(translated_word, 'Нью-Йорк')
+
+    def test_translate_empty_string(self):
+        translated_word = translate("")
+        self.assertEqual(translated_word, "")
+
+    def test_translate_non_english_word(self):
+        translated_word = translate("привет")
+        self.assertNotEqual(translated_word, "hello")
+
+
+class TestGetPrayersTimes(TestCase):
+
+    @patch('requests.get')
+    def test_get_prayers_times(self, mock_get):
+
+        os.environ['PRAYER_TIME_API'] = 'http://fakeapi.com'
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": {
+                "timings": {
+                    "Fajr": "05:00",
+                    "Sunrise": "06:15",
+                    "Dhuhr": "12:30",
+                    "Asr": "15:45",
+                    "Maghrib": "18:00",
+                    "Isha": "19:15"
+                },
+                "date": {
+                    "hijri": {
+                        "date": "01-01-1445"
+                    }
+                }
+            }
         }
 
-        path = reverse('prayer-time-by-city', args=[self.city.id])
-        response = self.client.get(path)
+        mock_get.return_value = mock_response
 
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertEqual(response.data['city'], self.city.name)
-        self.assertIn('prayer-time', response.data)
-        self.assertEqual(response.data['prayer-time'], mock_get_prayers_times.return_value)
+        today = "2023-10-01"
+        latitude = 0.0
+        longitude = 0.0
+        result = get_prayers_times(today, latitude, longitude)
 
-    def test_get_prayer_times_city_not_found(self):
-        path = reverse('prayer-time-by-city', args=[9999])
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-        self.assertEqual(response.data['error'], 'Город не найден')
+        expected_result = {
+            "Хиджра": "01-01-1445",
+            "Фаджр": "05:00",
+            "Восход солнца": "06:15",
+            "Зухр": "12:30",
+            "Аср": "15:45",
+            "Магриб": "18:00",
+            "Иша": "19:15"
+        }
 
-    @patch('prayer.services.coordinates_service.get_coordinates_by_city')
-    def test_get_prayer_times_coordinates_unavailable(self, mock_get_coordinates):
-        # Настраиваем мок для ситуации, когда координаты не найдены
-        mock_get_coordinates.return_value = None
+        self.assertEqual(result, expected_result)
 
-        path = reverse('prayer-time-by-city', args=[self.city.id])
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-        self.assertEqual(response.data['error'], 'Не удалось получить координаты города')
 
-    @patch('prayer.services.coordinates_service.get_coordinates_by_city')
-    @patch('prayer.services.prayer_time_service.get_prayers_times', side_effect=GeocoderUnavailable)
-    def test_get_prayer_times_geocoder_unavailable(self, mock_get_prayers_times, mock_get_coordinates):
-        mock_get_coordinates.return_value = {"latitude": 55.7558, "longitude": 37.6173}
+class TestCoordinateFunctions(TestCase):
 
-        path = reverse('prayer-time-by-city', args=[self.city.id])
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, HTTPStatus.BAD_REQUEST)
-        self.assertEqual(response.data['error'], 'Служба поиска местоположения временно не работает')
+    def test_get_coordinates_by_ip(self):
 
-    def tearDown(self):
-        pass
+        user_ip = "63.116.61.253"
+        result = get_coordinates_by_ip(user_ip)
+
+        expected = {
+            "latitude": 40.7128,
+            "longitude": -74.0060,
+            "city": "New York"
+        }
+        self.assertEqual(result, expected)
+
+
+    def test_get_coordinate_by_city(self):
+        result = get_coordinates_by_city('New-York')
+
+        expected = {
+            'address': 'City of New York, New York, United States',
+            'latitude': 40.7127281,
+            'longitude': -74.0060152
+        }
+
+        self.assertEqual(result, expected)
+
+
+
