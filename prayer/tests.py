@@ -5,7 +5,6 @@ from unittest.mock import patch, MagicMock
 from django.http import HttpRequest
 
 from prayer.services.coordinates_service import get_coordinates_by_ip, get_coordinates_by_city
-from prayer.utils.time_utils import TODAY_DATE
 
 from prayer.services.ip_service import get_user_ip
 from prayer.services.translate_service import translate
@@ -125,6 +124,3 @@ class TestCoordinateFunctions(TestCase):
         }
 
         self.assertEqual(result, expected)
-
-
-

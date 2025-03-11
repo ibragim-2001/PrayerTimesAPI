@@ -4,8 +4,7 @@ from typing import Dict
 
 def get_prayers_times(today: str, latitude: float, longitude: float) -> Dict[str, str]:
     url = f'{os.getenv("PRAYER_TIME_API")}/v1/timings/{today}?latitude={latitude}&longitude={longitude}&method=14'
-    response = requests.get(url)
-    data = response.json()
+    data = requests.get(url).json()
 
     fajr = data["data"]["timings"]["Fajr"]
     sunrise = data["data"]["timings"]["Sunrise"]
